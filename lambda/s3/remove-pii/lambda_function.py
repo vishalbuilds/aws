@@ -55,13 +55,13 @@ def lambda_handler(event,context):
                 break
             time.sleep(5)
 
-            if transcribe_status=='COMPLETED':
-                TranscriptFileUri=transcribe_response['TranscriptionJob']['Transcript']['TranscriptFileUri']
-                logger.info (f"Transcribe job successfully completed. result store in bucket: {target_output_bucket} and file uri: {TranscriptFileUri}")
+        if transcribe_status=='COMPLETED':
+            TranscriptFileUri=transcribe_response['TranscriptionJob']['Transcript']['TranscriptFileUri']
+            logger.info (f"Transcribe job successfully completed. result store in bucket: {target_output_bucket} and file uri: {TranscriptFileUri}")
             
-            else:
-                logger.error(f"Transcribe job failed: {json.dumps(transcribe_status)}")
-                raise Exception["transcribed job has failed"]
+        else:
+            logger.error(f"Transcribe job failed: {json.dumps(transcribe_status)}")
+            raise Exception["transcribed job has failed"]
     except Exception as e:
         logger.error(f"Error in processing file: {source_key} in lambda function: {lambda_function_name} ")
         return {'statusCode':400,
