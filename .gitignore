@@ -166,9 +166,11 @@ cython_debug/
 node_modules/
 *.js
 !jest.config.js
+.yarn/
+.pnp.*
 
 
 #cdk
-.cdk.staging/
-.cdk.out/
-coverage/
+cdk.out/
+cdk.context.json
+cdk-exports.json
