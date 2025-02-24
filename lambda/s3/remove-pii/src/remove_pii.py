@@ -1,9 +1,9 @@
 import boto3
 import uuid
 import time
-import json
 import os
-from common.logger import Logger  # Importing the logger from a common module
+
+from ....common import Logger
 
 LOGGER=Logger(__name__)
 
@@ -14,7 +14,6 @@ TARGET_OUTPUT_BUCKET=os.environ.get("TARGET_OUTPUT_BUCKET",'new-recording-with-p
 
 # Initialize the transcribe client
 transcribe_client = boto3.client('transcribe',region_name=REGION)
-
 
 
 # Function to generate a random ID
@@ -49,45 +48,79 @@ def get_transcription_job_status(transcription_job_name):
 
 # Function to check the transcription job status
 def check_transcription_status(transcription_job_name):
-    while True:
-        status, response = get_transcription_job_status(transcription_job_name)
-        LOGGER.info(f"Transcription job status: {status}")
-        if status in ['COMPLETED', 'FAILED']:
-            break
-        time.sleep(5)
+    try:
+        LOGGER.info(f"Checking transcription job status for: {transcription_job_name}")
+        response = get_transcription_job_status(transcription_job_name)
+        status = response['TranscriptionJob']['TranscriptionJobStatus']
+        while True:
+            LOGGER.info(f"Transcription job status: {status}")
+            if status =='COMPLETED':
+                LOGGER.info(f"Transcription job completed with status: {status}")
+                return status
+            elif status == 'IN_PROGRESS':
+                LOGGER.info(f"Transcription job in progress...")
+                time.sleep(5)
+            elif status == 'FAILED':
+                LOGGER.error(f"Transcription job failed: {status}")
+                return status
+            else:
+                LOGGER.error(f"Transcription job status not found:{response}")
+                return "UNKNOWN"
+    except Exception as e:
+        LOGGER.error(f"Error checking transcription job status: {e}")
+        raise e
 
-    if status == 'COMPLETED':
-        transcript_file_uri = response['TranscriptionJob']['Transcript']['TranscriptFileUri']
-        LOGGER.info(f"Transcription completed. Result stored in: {target_output_bucket}, File URI: {transcript_file_uri}")
-        return transcript_file_uri
-    else:
-        LOGGER.error(f"Transcription job failed: {json.dumps(status)}")
-        raise Exception("Transcription job failed")
 
 # Lambda handler function
 def lambda_handler(event, context):
-    LOGGER.info(f" Starting LambdaFunctionName: { context.function_name}, Region: {REGION}")
-
+    LOGGER.info(f" Starting LambdaFunctionName:redact-pii, Region: {REGION}")
     source_bucket = event['Records'][0]['s3']['bucket']['name']
     source_key = event['Records'][0]['s3']['object']['key']
     media_file_uri = f"s3://{source_bucket}/{source_key}"
-
     transcription_job_name = f"Transcription_Job_Name-{generate_random_id()}"
-
-
-
     try:
-        transcription_job_name = start_transcription_job(source_bucket, source_key, target_output_bucket)
-        transcript_file_uri = check_transcription_status(transcription_job_name, target_output_bucket)
+        transcription_start= start_transcription_job(transcription_job_name, media_file_uri, TARGET_OUTPUT_BUCKET)
+        transcription_start_status=transcription_start['TranscriptionJob']['TranscriptionJobStatus']
+        if transcription_start_status in ['IN_PROGRESS','QUEUED']:
+            time.sleep(5)
+            check_status=check_transcription_status(transcription_job_name)
+            LOGGER.info(f"Transcription job processing completed with status: {check_status}")
+            return {
+                'statusCode': 200,
+                'message': 'Transcription job processing completed',
+                'media_file_uri': f"s3://{source_bucket}/{source_key}",
+                'Status': check_status
+                }
+        elif transcription_start_status in ['COMPLETED']:
+            LOGGER.error(f"Transcription job processing completed with status: {transcription_start_status}")
+            return {
+                'statusCode': 200,
+                'message': 'Transcription job processing completed',
+                'media_file_uri': f"s3://{source_bucket}/{source_key}",
+                'Status': transcription_start_status
+            }
+        elif transcription_start_status in ['FAILED']:
+            LOGGER.error(f"Transcription job processing failed with status: {transcription_start_status}")
+            return {
+                'statusCode': 400,
+                'message': 'Transcription job processing failed',
+                'media_file_uri': f"s3://{source_bucket}/{source_key}",
+                'Status': transcription_start_status
+            }
+        else:
+            LOGGER.error(f"Transcription job processing not found with status")
+            return {
+                'statusCode': 400,
+                'message': 'Transcription job processing not found',
+                'media_file_uri': f"s3://{source_bucket}/{source_key}",
+                'Status': 'UNKNOWN'
+            }
     except Exception as e:
-        LOGGER.error(f"Error processing file {source_key} in Lambda function {lambda_function_name}: {e}")
+        LOGGER.error(f"Error processing file {media_file_uri}, Error: {e}")
         return {
             'statusCode': 400,
-            'body': json.dumps({'message': 'Error processing file', 'error': str(e), 'file_name': source_key,})
+            'message': f'Error processing file',
+            'error': str(e),
+            'media_file_uri': f"s3://{source_bucket}/{source_key}",
         }
 
-    return {
-        'statusCode': 200,
-        'body': json.dumps(
-            {'message': 'File processed and transcription result stored successfully', 'file_name': source_key,})
-    }
