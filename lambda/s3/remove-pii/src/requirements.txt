@@ -6,3 +6,4 @@ datetime
 json
 re
 typing
+pylint
