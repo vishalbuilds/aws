@@ -2,8 +2,11 @@ import uuid
 import time
 import os
 import boto3
-from aws.common.logger import Logger
-LOGGER=Logger(__name__)
+import sys
+
+from . import la
+
+LOGGER = Logger(__name__)
 
 # Environment variables
 REGION = os.environ.get('AWS_REGION','us-east-1')
