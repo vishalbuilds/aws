@@ -2,10 +2,10 @@ import uuid
 import time
 import os
 import boto3
-import sys
 
-from . import la
 
+
+from common.logger import Logger
 LOGGER = Logger(__name__)
 
 # Environment variables
@@ -19,12 +19,16 @@ transcribe_client = boto3.client('transcribe',region_name=REGION)
 
 # Function to generate a random ID
 def generate_random_id():
-    '''Generate a random ID'''
-    return str(uuid.uuid4())
+    LOGGER.info('Generating random ID')
+    try:
+        return str(uuid.uuid4())
+    except Exception as e:
+        LOGGER.error(f"Error generating random ID: {e}")
+        raise e
 
 # Function to start the transcription job
 def start_transcription_job(transcription_job_name,source_input_bucket, target_output_bucket):
-    '''Start the transcription job'''
+    LOGGER.info('Start the transcription job')
     LOGGER.info(f"Processing file: {transcription_job_name} from bucket: {source_input_bucket}")
 
     try:
@@ -42,7 +46,7 @@ def start_transcription_job(transcription_job_name,source_input_bucket, target_o
 
 # Function to get the transcription job status
 def get_transcription_job_status(transcription_job_name):
-    '''Get the transcription job status'''
+    LOGGER.info('Get the transcription job status')
     try:
         response = transcribe_client.get_transcription_job(
             TranscriptionJobName=transcription_job_name
@@ -54,7 +58,7 @@ def get_transcription_job_status(transcription_job_name):
 
 # Function to check the transcription job status
 def check_transcription_status(transcription_job_name):
-    '''Check the transcription job status'''
+    LOGGER.info('Check the transcription job status')
     try:
         LOGGER.info(f"Checking transcription job status for: {transcription_job_name}")
         response = get_transcription_job_status(transcription_job_name)
@@ -80,7 +84,7 @@ def check_transcription_status(transcription_job_name):
 
 # Lambda handler function
 def lambda_handler(event, context):
-    '''Lambda handler function'''
+    LOGGER.info('Lambda handler function')
     LOGGER.info(f" Starting LambdaFunctionName:redact-pii, Region: {REGION}")
     source_bucket = event['Records'][0]['s3']['bucket']['name']
     source_key = event['Records'][0]['s3']['object']['key']
