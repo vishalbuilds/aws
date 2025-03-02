@@ -7,11 +7,11 @@ echo "====== Starting Unit Tests ======"
 pytest --maxfail=1 --disable-warnings
 UNIT_TEST_STATUS=$?
 
-echo "====== Running Coverage Tests ======"
+echo "---------------------------------------------+Running Coverage Tests+---------------------------------------------"
 coverage run -m pytest --disable-warnings
 COV_TEST_STATUS=$?
 
-echo "====== Coverage Report ======"
+echo "-----------------------------------------------+Coverage Report+--------------------------------------------------"
 coverage report
 
 # Print status messages
@@ -26,3 +26,5 @@ if [ $COV_TEST_STATUS -eq 0 ]; then
 else
     echo "❌ Coverage tests failed!"
 fi
+
+echo "----------------------------------------+Unit and Coverage Completed+---------------------------------------------"

@@ -108,7 +108,96 @@ class TestRemovePII(unittest.TestCase):
             handler.check_transcription_status('test-job')
         self.assertEqual(str(context.exception), expected_response_failure)
 
-    #test case for lambda handler function
+    #test case for lambda handler function in progress to complete
+    @patch('src.remove_pii.transcribe_client')
+    @patch('time.sleep', return_value=None)
+    def test_lambda_handler_in_progress_to_complete(self,mock_sleep,moc_transcribe_client):
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "source-bucket"},
+                    "object": {"key": "test-file.mp3"}
+                }
+            }]
+        }
+        context={}
+        moc_transcribe_client.start_transcription_job.return_value={"TranscriptionJob": {"TranscriptionJobStatus": "IN_PROGRESS"}}
+        moc_transcribe_client.get_transcription_job.return_value = {"TranscriptionJob": {"TranscriptionJobStatus": "COMPLETED"}}
+        moc_transcribe_client.check_transcription_status.return_value='COMPLETED'
+        response=handler.lambda_handler(event, context)
+        self.assertEqual(response["Status"], "COMPLETED")
+
+    #test case for lambda handler function complete
+    @patch('src.remove_pii.transcribe_client')
+    @patch('time.sleep', return_value=None)
+    def test_lambda_handler_complete(self,mock_sleep,moc_transcribe_client):
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "source-bucket"},
+                    "object": {"key": "test-file.mp3"}
+                }
+            }]
+        }
+        context={}
+        moc_transcribe_client.start_transcription_job.return_value={"TranscriptionJob": {"TranscriptionJobStatus": "COMPLETED"}}
+        response=handler.lambda_handler(event, context)
+        self.assertEqual(response["Status"], "COMPLETED")
+
+    # test case for lambda handler function failed
+    @patch('src.remove_pii.transcribe_client')
+    @patch('time.sleep', return_value=None)
+    def test_lambda_handler_failed(self, mock_sleep, moc_transcribe_client):
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "source-bucket"},
+                    "object": {"key": "test-file.mp3"}
+                }
+            }]
+        }
+        context = {}
+        moc_transcribe_client.start_transcription_job.return_value = {
+            "TranscriptionJob": {"TranscriptionJobStatus": "FAILED"}}
+        response = handler.lambda_handler(event, context)
+        self.assertEqual(response["Status"], "FAILED")
+
+    # test case for lambda handler function failed
+    @patch('src.remove_pii.transcribe_client')
+    @patch('time.sleep', return_value=None)
+    def test_lambda_handler_failed(self, mock_sleep, moc_transcribe_client):
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "source-bucket"},
+                    "object": {"key": "test-file.mp3"}
+                }
+            }]
+        }
+        context = {}
+        moc_transcribe_client.start_transcription_job.return_value = {"TranscriptionJob": {"TranscriptionJobStatus": "---"}}
+        response = handler.lambda_handler(event, context)
+        self.assertEqual(response["Status"], "UNKNOWN")
+
+    # test case for lambda handler function exception
+    @patch('src.remove_pii.start_transcription_job')
+    @patch('time.sleep', return_value=None)
+    def test_lambda_handler_failed(self, mock_sleep, moc_start_transcription_job):
+        event = {
+            "Records": [{
+                "s3": {
+                    "bucket": {"name": "source-bucket"},
+                    "object": {"key": "test-file.mp3"}
+                }
+            }]
+        }
+        context_test = {}
+        expected_response_failure = 'Transcription job failed'
+        moc_start_transcription_job.side_effect=Exception(expected_response_failure)
+        response = handler.lambda_handler(event, context_test)
+        self.assertEqual(response['error'], expected_response_failure)
+
+
 
 if __name__ == '__main__':
     unittest.main()
