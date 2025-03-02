@@ -9,16 +9,21 @@ LABEL application="remove_pii-s3"
 # Copy the requirements file before installing dependencies
 COPY src/requirements.txt .
 
-# Upgrade pip and install dependencies (including pytest & pytest-cov)
+# Upgrade pip and install dependencies
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy the entire source code into the container
-COPY src/ .
+COPY . .
 COPY test.sh .
-ENV PYTHONPATH=/app/src
+
+# Set Python path globally
+ENV PYTHONPATH=/app
+
+# Ensure test.sh is executable
 RUN chmod +x test.sh
 
-# Set the entrypoint to run the test script
+# Run the test script as default command
+
 RUN ["./test.sh"]
-ENTRYPOINT['sh']
+CMD ["sh"]
