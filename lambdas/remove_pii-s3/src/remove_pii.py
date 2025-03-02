@@ -61,9 +61,9 @@ def check_transcription_status(transcription_job_name):
     LOGGER.info('Check the transcription job status')
     try:
         LOGGER.info(f"Checking transcription job status for: {transcription_job_name}")
-        response = get_transcription_job_status(transcription_job_name)
-        status = response['TranscriptionJob']['TranscriptionJobStatus']
         while True:
+            response = get_transcription_job_status(transcription_job_name)
+            status = response['TranscriptionJob']['TranscriptionJobStatus']
             LOGGER.info(f"Transcription job status: {status}")
             if status =='COMPLETED':
                 LOGGER.info(f"Transcription job completed with status: {status}")
