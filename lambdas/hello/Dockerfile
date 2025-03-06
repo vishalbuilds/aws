@@ -3,7 +3,7 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-LABEL application="remove_pii-s3"
+LABEL application="sample"
 
 COPY src/requirements.txt .
 

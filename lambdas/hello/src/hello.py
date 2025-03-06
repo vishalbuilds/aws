@@ -2,6 +2,7 @@ from common.logger import Logger
 
 # Initialize the custom logger
 logger = Logger()
+LOGGER = Logger(__name__)
 
 def lambda_handler(event, context):
     try:
