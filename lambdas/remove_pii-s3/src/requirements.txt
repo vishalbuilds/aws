@@ -1,5 +1,0 @@
-boto3
-pylint
-pytest
-coverage
-pytest-cov

@@ -1,0 +1,47 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with flake8
+        run: |
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run tests with coverage
+        run: |
+          coverage run -m pytest src/test/unit
+          coverage report -m > cov.txt
+          cat cov.txt
+
+      - name: Notify coverage threshold
+        run: |
+          THRESHOLD=90
+          ACTUAL=$(awk '/^TOTAL/ {print int($4)}' cov.txt)
+          if [ "$ACTUAL" -lt "$THRESHOLD" ]; then
+            DIFF=$((THRESHOLD - ACTUAL))
+            echo "::warning ::Coverage is $ACTUAL%, which is $DIFF% below the required $THRESHOLD%."
+          else
+            DIFF=$((ACTUAL - THRESHOLD))
+            echo "::notice ::Coverage is $ACTUAL%, which is $DIFF% above the required $THRESHOLD%."
+          fi 
