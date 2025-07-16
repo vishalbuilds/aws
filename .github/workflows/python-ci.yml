@@ -81,3 +81,7 @@ jobs:
             DIFF=$((ACTUAL - THRESHOLD))
             echo "::notice ::Coverage is $ACTUAL%, which is $DIFF% above the required $THRESHOLD%."
           fi 
+      - name: Add coverage % to summary
+        run: |
+          ACTUAL=$(awk '/^TOTAL/ {print $4}' cov.txt)
+          echo "### Coverage: $ACTUAL" >> $GITHUB_STEP_SUMMARY 
