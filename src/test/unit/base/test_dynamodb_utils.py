@@ -4,7 +4,7 @@ from strategies.base.dynamodb_utils import DynamoDBUtils
 
 class TestDynamoDBUtils(unittest.TestCase):
     def setUp(self):
-        patcher = patch('strategies.base.dynamodb_utils.boto3.resource')
+        patcher = patch('boto3.resource')
         self.addCleanup(patcher.stop)
         self.mock_resource = patcher.start()
         self.mock_table = MagicMock()
