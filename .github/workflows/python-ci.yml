@@ -102,7 +102,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install Safety
+      - name: Install Safety and dependencies
         run: |
           pip install -r src/requirements.txt
           pip install safety
