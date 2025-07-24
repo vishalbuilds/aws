@@ -1,7 +1,7 @@
 """
 s3_remove_pii.py: Lambda handler for removing PII from S3 audio files using AWS Transcribe.
 
-This handler uses S3 and Transcribe utility classes from the base/ folder for all AWS operations.
+This handler uses S3 and Transcribe utility classes from the utils/ folder for all AWS operations.
 It demonstrates OOP, logging, and robust error handling.
 """
 import uuid
