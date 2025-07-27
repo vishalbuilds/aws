@@ -7,11 +7,11 @@ It demonstrates OOP, logging, and robust error handling.
 import uuid
 import time
 import os
-from strategies.base.s3_utils import S3Utils
-from strategies.base.transcribe_utils import TranscribeUtils
+from src.strategies.utils.s3_utils import S3Utils
+from src.strategies.utils.transcribe_utils import TranscribeUtils
 from common.logger import Logger
 
-class S3RemovePiiHandler(S3Utils, TranscribeUtils):
+class S3RemovePii(S3Utils, TranscribeUtils):
     """
     Handler for removing PII from S3 audio files using AWS Transcribe.
     Inherits S3Utils and TranscribeUtils for AWS operations.
@@ -95,6 +95,3 @@ class S3RemovePiiHandler(S3Utils, TranscribeUtils):
                 'media_file_uri': f"s3://{source_bucket}/{source_key}",
             }
 
-def lambda_handler(event, context):
-    """Lambda entry point."""
-    return S3RemovePiiHandler().handle(event, context) 
