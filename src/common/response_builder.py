@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 
-class HandlerResponse(dict):
+class ResponseBuilder(dict):
     SUCCESS_RESULT = "success"
     ERROR_RESULT = "error"
 
