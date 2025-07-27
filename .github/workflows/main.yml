@@ -1,0 +1,123 @@
+name: Lambda Code Testing
+
+on:
+  push:
+    paths:
+      - 'aws/laws/lambdas/**'
+  pull_request:
+    paths:
+      - 'aws/laws/lambdas/**'
+  workflow_dispatch:
+    inputs:
+      lambda_path:
+        description: 'Path to the lambda directory to test (relative to aws/laws/lambdas)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      lambda_dirs: ${{ steps.find-lambdas.outputs.lambda_dirs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Required for accurate change detection
+
+      - name: Find modified Lambda directories
+        id: find-lambdas
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.lambda_path }}" ]; then
+            LAMBDA_DIRS='["${{ github.event.inputs.lambda_path }}"]'
+          else
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep "aws/laws/lambdas/" || echo "")
+            else
+              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep "aws/laws/lambdas/" || echo "")
+            fi
+            
+            LAMBDA_DIRS=$(echo "$CHANGED_FILES" | grep -o "aws/laws/lambdas/[^/]*" | sort -u | while read -r dir; do
+              if [ -f "$dir/Dockerfile" ]; then
+                echo "\"${dir#aws/laws/lambdas/}\""
+              fi
+            done | jq -s -c 'map(select(length > 0))')
+          fi
+
+          echo "Detected Lambda directories: $LAMBDA_DIRS"
+          echo "lambda_dirs=$LAMBDA_DIRS" >> "$GITHUB_OUTPUT"
+
+  test-lambda:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.detect-changes.outputs.lambda_dirs != '[]' && needs.detect-changes.outputs.lambda_dirs != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        lambda_dir: ${{ fromJSON(needs.detect-changes.outputs.lambda_dirs) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and Test Lambda in Docker
+        id: docker_build
+        working-directory: aws/laws/lambdas/${{ matrix.lambda_dir }}
+        run: |
+          echo "🚀 Building and testing Lambda: ${{ matrix.lambda_dir }}"
+
+          if [ ! -f "Dockerfile" ]; then
+            echo "::error:: Dockerfile missing in aws/laws/lambdas/${{ matrix.lambda_dir }}"
+            exit 1
+          fi
+          
+          docker build -t lambda-${{ matrix.lambda_dir }}:latest . 2>&1 | tee build_output.txt
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "::error:: Docker build failed for ${{ matrix.lambda_dir }}"
+            cat build_output.txt
+            exit $BUILD_EXIT_CODE
+          fi
+
+          echo "✅ Build successful!"
+
+          # Run tests inside the container
+          docker run --rm lambda-${{ matrix.lambda_dir }}:latest /bin/sh -c "./test.sh" 2>&1 | tee test_output.txt
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "::error:: Tests failed for ${{ matrix.lambda_dir }}"
+            exit $TEST_EXIT_CODE
+          fi
+
+          echo "✅ All tests passed!"
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.lambda_dir }}-test-logs
+          path: |
+            aws/laws/lambdas/${{ matrix.lambda_dir }}/build_output.txt
+            aws/laws/lambdas/${{ matrix.lambda_dir }}/test_output.txt
+
+      - name: Extract Test Coverage
+        id: extract-coverage
+        run: |
+          COVERAGE=$(grep -A 20 "Coverage Report" test_output.txt | grep "TOTAL" | awk '{print $NF}' | tr -d '%')
+          if [ -n "$COVERAGE" ]; then
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+              echo "::warning:: Test coverage ($COVERAGE%) is below 80%"
+            fi
+          fi
+
+      - name: Report Results
+        run: |
+          echo "Lambda: ${{ matrix.lambda_dir }} - Test Summary:"
+          grep "✅" test_output.txt || true
+          grep "❌" test_output.txt || true
